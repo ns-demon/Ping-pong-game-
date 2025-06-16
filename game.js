@@ -466,26 +466,6 @@ function showOverlay(text) {
 }
 function hideOverlay() { overlay.hidden = true; }
 
-// --- Gateway Overlay for User Interaction ---
-function showGateway() {
-  overlay.hidden = false;
-  overlayContent.innerHTML = "Click to play Ping Pong";
-  resumeBtn.hidden = true;
-  overlayRestartBtn.hidden = true;
-  // Disable in-game controls until started
-  pauseBtn.disabled = true;
-  restartBtn.disabled = true;
-  difficultySelect.disabled = true;
-  overlay.onclick = () => {
-    overlay.onclick = null;
-    hideOverlay();
-    pauseBtn.disabled = false;
-    restartBtn.disabled = false;
-    difficultySelect.disabled = false;
-    unlockAudioAndStart();
-  };
-}
-
 // --- Button Events ---
 pauseBtn.onclick = () => {
   if (gameState === "playing") {
@@ -524,17 +504,12 @@ function resizeCanvas() {
 }
 window.addEventListener("resize", resizeCanvas);
 
-// --- Audio Unlock (for browsers that require interaction) ---
-function unlockAudioAndStart() {
-  if (!bgMusicStarted) {
-    SOUNDS.bg.play().catch(()=>{});
-    bgMusicStarted = true;
-  }
-  startGame();
-}
-
-// --- Start Game ---
-function startGame() {
+// --- Gateway Start Function (called from index.html after click) ---
+window.startGameAfterGateway = function() {
+  document.getElementById("pause-btn").disabled = false;
+  document.getElementById("restart-btn").disabled = false;
+  document.getElementById("difficulty").disabled = false;
+  // Start the game
   hideOverlay();
   gameState = "playing";
   resetGame();
@@ -547,6 +522,4 @@ function startGame() {
   }
   requestAnimationFrame(gameLoop);
   resizeCanvas();
-}
-
-window.onload = showGateway;
+};
