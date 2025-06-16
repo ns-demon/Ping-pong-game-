@@ -58,7 +58,14 @@ h1 {
   transition: background 0.2s;
 }
 
-#ui-bar button:hover, #ui-bar select:focus {
+#ui-bar button:disabled, #ui-bar select:disabled {
+  background: #444a5c;
+  color: #8a8a8a;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+#ui-bar button:hover:enabled, #ui-bar select:focus:enabled {
   background: #315586;
 }
 
