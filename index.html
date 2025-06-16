@@ -33,5 +33,23 @@
   <audio id="audio-powerup" src="https://cdn.jsdelivr.net/gh/AI-Resources/sfx@main/powerup.mp3"></audio>
   <audio id="audio-bg" src="https://cdn.jsdelivr.net/gh/AI-Resources/sfx@main/bg-music.mp3" loop></audio>
   <script src="game.js"></script>
+  <script>
+    // Show gateway overlay immediately on page load
+    window.addEventListener('DOMContentLoaded', function () {
+      var overlay = document.getElementById('overlay');
+      var overlayContent = document.getElementById('overlay-content');
+      var pauseBtn = document.getElementById('pause-btn');
+      var restartBtn = document.getElementById('restart-btn');
+      var difficultySelect = document.getElementById('difficulty');
+      // Gateway overlay message
+      overlay.hidden = false;
+      overlayContent.innerHTML = "Click to play Ping Pong";
+      document.getElementById('resume-btn').hidden = true;
+      document.getElementById('overlay-restart-btn').hidden = true;
+      pauseBtn.disabled = true;
+      restartBtn.disabled = true;
+      difficultySelect.disabled = true;
+    });
+  </script>
 </body>
 </html>
