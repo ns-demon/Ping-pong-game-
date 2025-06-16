@@ -1,4 +1,4 @@
-// --- Super Advanced Ping Pong Game ---
+// --- Super Advanced Ping Pong Game (Arrow Key Control Only) ---
 
 // --- Configurable Settings ---
 const GAME_WIDTH = 900, GAME_HEIGHT = 540;
@@ -16,6 +16,7 @@ const POWERUPS = [
 ];
 const MAX_SCORE = 7;
 const BG_COLOR = "#181f36";
+const PLAYER_MOVE_SPEED = 13;
 
 const SOUNDS = {
   bounce: document.getElementById("audio-bounce"),
@@ -161,8 +162,6 @@ class Ball {
 // --- Utility Functions ---
 function clamp(val, min, max) { return Math.max(min, Math.min(val, max)); }
 function rand(min, max) {
-  // If called as rand(a, b): returns [a, b)
-  // If called as rand([-1,1]): returns -1 or 1
   if (Array.isArray(min)) return min[Math.floor(Math.random()*min.length)];
   return Math.random() * (max-min) + min;
 }
@@ -260,7 +259,6 @@ function applyPowerup(type, side) {
   } else if (type === "speed") {
     balls.forEach(b=>b.setSpeedUp());
   } else if (type === "extraBall") {
-    // Add a new ball in random direction
     balls.push(new Ball(
       GAME_WIDTH/2-BALL_SIZE/2,
       GAME_HEIGHT/2-BALL_SIZE/2,
@@ -272,13 +270,10 @@ function applyPowerup(type, side) {
 }
 
 // --- Game Logic ---
-
-// Reset game objects
 function resetGame() {
   playerScore = 0; aiScore = 0;
   player = new Paddle(24, PADDLE_COLOR);
   ai = new Paddle(GAME_WIDTH-24-PADDLE_W, AI_PADDLE_COLOR);
-  // Fix: Use Math.random() > 0.5 ? 1 : -1 for direction
   balls = [new Ball(
     GAME_WIDTH/2-BALL_SIZE/2,
     GAME_HEIGHT/2-BALL_SIZE/2,
@@ -291,14 +286,10 @@ function resetGame() {
   frame = 0; powerupTimer = 0;
   updateScoreUI();
 }
-
-// Update score UI
 function updateScoreUI() {
   document.title = `Pong | ${playerScore} : ${aiScore}`;
   updateHighScore();
 }
-
-// Draw net
 function drawNet() {
   ctx.save();
   ctx.strokeStyle = NET_COLOR;
@@ -311,8 +302,6 @@ function drawNet() {
   ctx.setLineDash([]);
   ctx.restore();
 }
-
-// Draw scores
 function drawScores() {
   ctx.save();
   ctx.font = "bold 52px Segoe UI";
@@ -323,11 +312,8 @@ function drawScores() {
   ctx.fillText(aiScore, GAME_WIDTH/2 + 90, 22);
   ctx.restore();
 }
-
-// Draw all objects
 function draw() {
   ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-  // BG
   ctx.fillStyle = BG_COLOR;
   ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
   drawNet();
@@ -338,49 +324,51 @@ function draw() {
   drawPowerups();
   drawParticles();
 }
-
-// --- Ball / Paddle Collision ---
 function checkPaddleCollision(ball, paddle, side) {
   if (ball.x < paddle.x + paddle.width && ball.x + ball.size > paddle.x &&
       ball.y < paddle.y + paddle.height && ball.y + ball.size > paddle.y) {
     ball.lastHit = side;
     SOUNDS.bounce.currentTime = 0; SOUNDS.bounce.play();
     addParticles(ball.x+ball.size/2, ball.y+ball.size/2, 12);
-
-    // Ball direction and "spin"
     let rel = ((ball.y+ball.size/2) - (paddle.y+paddle.height/2)) / (paddle.height/2);
     ball.dy = rel * 0.9;
     ball.dx = side==="player" ? Math.abs(ball.dx) : -Math.abs(ball.dx);
-
-    // Slight increase in speed
     ball.baseSpeed *= 1.04;
     ball.speed = ball.baseSpeed;
-
-    // Clamp ball within paddle so it doesn't get stuck
     if (side === "player") ball.x = paddle.x + paddle.width + 1;
     else ball.x = paddle.x - ball.size - 1;
   }
 }
 
-// --- Player Control (Mouse/Touch) ---
-function onMove(e) {
-  let rect = canvas.getBoundingClientRect();
-  let clientY = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
-  player.moveTo(clientY - player.height/2);
+// --- Player Control (Arrow Keys Only) ---
+let upPressed = false;
+let downPressed = false;
+
+function handleKeyDown(e) {
+  if(gameState !== "playing") return;
+  if (e.key === "ArrowUp") upPressed = true;
+  if (e.key === "ArrowDown") downPressed = true;
 }
-canvas.addEventListener("mousemove", onMove);
-canvas.addEventListener("touchmove", onMove, {passive:true});
+function handleKeyUp(e) {
+  if (e.key === "ArrowUp") upPressed = false;
+  if (e.key === "ArrowDown") downPressed = false;
+}
+window.addEventListener("keydown", handleKeyDown);
+window.addEventListener("keyup", handleKeyUp);
+
+function movePlayerPaddle() {
+  if (upPressed) player.moveTo(player.y - PLAYER_MOVE_SPEED);
+  if (downPressed) player.moveTo(player.y + PLAYER_MOVE_SPEED);
+}
 
 // --- AI Logic ---
 function aiMove(ai, balls) {
-  // Target nearest ball moving toward AI
   let targetBall = balls.reduce((best, b) => {
     if (b.dx > 0) {
       if (!best || b.x > best.x) return b;
     }
     return best;
   }, null) || balls[0];
-  // Predict ball destination (simple linear, improve w/difficulty)
   let predictedY = targetBall.y;
   if (difficulty === "easy") {
     ai.speed = 7;
@@ -392,7 +380,6 @@ function aiMove(ai, balls) {
     ai.speed = 13;
     predictedY += rand(-15, 15);
   }
-  // Smooth movement
   let centerY = ai.y + ai.height/2;
   if (centerY < predictedY) ai.y += ai.speed;
   else if (centerY > predictedY) ai.y -= ai.speed;
@@ -403,18 +390,15 @@ function aiMove(ai, balls) {
 function gameLoop() {
   if (gameState !== "playing") return;
   frame++;
-  // Update objects
+  movePlayerPaddle();
   player.update(); ai.update();
   aiMove(ai, balls);
   balls.forEach(ball=>{
     ball.update();
-    // Collisions
     checkPaddleCollision(ball, player, "player");
     checkPaddleCollision(ball, ai, "ai");
     checkPowerupCollision(ball);
   });
-
-  // Score detection & ball out
   for (let i=balls.length-1; i>=0; i--) {
     let ball = balls[i];
     if (ball.x < -BALL_SIZE) {
@@ -440,13 +424,9 @@ function gameLoop() {
     ));
     updateScoreUI();
   }
-  // Powerup spawn
   if (frame % POWERUP_INTERVAL === 0 && powerups.length < 2) spawnPowerup();
-
   updateParticles();
   draw();
-
-  // Game end?
   if (playerScore >= MAX_SCORE || aiScore >= MAX_SCORE) {
     gameState = 'over';
     showOverlay(playerScore > aiScore ? "🏆 YOU WIN!" : "🤖 AI WINS!");
@@ -487,7 +467,7 @@ difficultySelect.onchange = () => {
   startGame();
 };
 
-// --- Keyboard Shortcuts ---
+// --- Keyboard Shortcuts for Pause/Restart ---
 document.addEventListener("keydown", e => {
   if (gameState === "init") return;
   if (e.code === "Space") {
@@ -509,7 +489,6 @@ window.startGameAfterGateway = function() {
   document.getElementById("pause-btn").disabled = false;
   document.getElementById("restart-btn").disabled = false;
   document.getElementById("difficulty").disabled = false;
-  // Start the game
   hideOverlay();
   gameState = "playing";
   resetGame();
