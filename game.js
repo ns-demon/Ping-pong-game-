@@ -38,7 +38,7 @@ const difficultySelect = document.getElementById("difficulty");
 const highScoreSpan = document.getElementById("high-score");
 
 // --- Game State ---
-let gameState = 'playing'; // 'playing', 'paused', 'over'
+let gameState = 'init'; // 'init', 'playing', 'paused', 'over'
 let difficulty = difficultySelect.value;
 let playerScore = 0, aiScore = 0, highScore = 0;
 let balls = [];
@@ -466,6 +466,26 @@ function showOverlay(text) {
 }
 function hideOverlay() { overlay.hidden = true; }
 
+// --- Gateway Overlay for User Interaction ---
+function showGateway() {
+  overlay.hidden = false;
+  overlayContent.innerHTML = "Click to play Ping Pong";
+  resumeBtn.hidden = true;
+  overlayRestartBtn.hidden = true;
+  // Disable in-game controls until started
+  pauseBtn.disabled = true;
+  restartBtn.disabled = true;
+  difficultySelect.disabled = true;
+  overlay.onclick = () => {
+    overlay.onclick = null;
+    hideOverlay();
+    pauseBtn.disabled = false;
+    restartBtn.disabled = false;
+    difficultySelect.disabled = false;
+    unlockAudioAndStart();
+  };
+}
+
 // --- Button Events ---
 pauseBtn.onclick = () => {
   if (gameState === "playing") {
@@ -489,6 +509,7 @@ difficultySelect.onchange = () => {
 
 // --- Keyboard Shortcuts ---
 document.addEventListener("keydown", e => {
+  if (gameState === "init") return;
   if (e.code === "Space") {
     if (gameState === "playing") pauseBtn.onclick();
     else if (gameState === "paused") resumeBtn.onclick();
@@ -504,16 +525,13 @@ function resizeCanvas() {
 window.addEventListener("resize", resizeCanvas);
 
 // --- Audio Unlock (for browsers that require interaction) ---
-function unlockAudio() {
+function unlockAudioAndStart() {
   if (!bgMusicStarted) {
     SOUNDS.bg.play().catch(()=>{});
     bgMusicStarted = true;
-    document.removeEventListener('click', unlockAudio);
-    document.removeEventListener('keydown', unlockAudio);
   }
+  startGame();
 }
-document.addEventListener('click', unlockAudio);
-document.addEventListener('keydown', unlockAudio);
 
 // --- Start Game ---
 function startGame() {
@@ -530,4 +548,5 @@ function startGame() {
   requestAnimationFrame(gameLoop);
   resizeCanvas();
 }
-window.onload = startGame;
+
+window.onload = showGateway;
