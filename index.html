@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Discord Token Scraper (Educational Demo)</title>
+  <title>Discord Token Scraper (Node.js Edition)</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -72,11 +72,19 @@
       color: #ffe477;
       word-break: break-all;
     }
+    .download-link {
+      display: inline-block;
+      margin-top: 12px;
+      color: #7ac7ff;
+      text-decoration: underline;
+      cursor: pointer;
+      font-size: 1.05em;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Discord Token Scraper (Educational Demo)</h1>
+    <h1>Discord Token Scraper (Node.js Edition)</h1>
     <form id="scrape-form">
       <label for="start-url">Start URL to Scrape:</label><br>
       <input type="text" id="start-url" required placeholder="https://tria.ge/"><br>
@@ -85,38 +93,59 @@
     <div class="results" id="results">
       <b>Status:</b> <span id="status">Idle. Enter a URL and click Start.</span>
       <div class="token-list" id="token-list"></div>
+      <a class="download-link" href="/tokens.txt" target="_blank" id="download-link" style="display:none;">Download tokens.txt</a>
     </div>
+    <footer style="margin-top:30px;text-align:center;font-size:0.93em;color:#888;">
+      Open-source backend:<br>
+      <a href="https://github.com/ns-demon/discord-token-scraper-backend" target="_blank" style="color:#7ac7ff;">github.com/ns-demon/discord-token-scraper-backend</a>
+      <br>
+      Running at: <span id="backend-url"></span>
+    </footer>
   </div>
   <script>
+    // --- Configuration: change this to your backend URL if hosted elsewhere ---
+    const BACKEND_URL = window.location.origin;
+
+    document.getElementById("backend-url").textContent = BACKEND_URL;
+
     const form = document.getElementById('scrape-form');
     const startUrlInput = document.getElementById('start-url');
     const statusEl = document.getElementById('status');
     const tokenListEl = document.getElementById('token-list');
     const scrapeBtn = document.getElementById('scrape-btn');
+    const downloadLink = document.getElementById('download-link');
     let evtSource = null;
 
     form.onsubmit = function(e) {
       e.preventDefault();
       tokenListEl.innerHTML = "";
       statusEl.textContent = "Starting scrape...";
+      downloadLink.style.display = "none";
       scrapeBtn.disabled = true;
       if (evtSource) evtSource.close();
-      evtSource = new EventSource(`/scrape?url=${encodeURIComponent(startUrlInput.value)}`);
+
+      // Connect to the backend event stream
+      evtSource = new EventSource(`${BACKEND_URL}/scrape?url=${encodeURIComponent(startUrlInput.value)}`);
+      let allTokens = new Set();
+
       evtSource.onmessage = function(event) {
         const data = JSON.parse(event.data);
         if (data.status) statusEl.textContent = data.status;
         if (Array.isArray(data.tokens) && data.tokens.length) {
-          tokenListEl.innerHTML = "<b>Tokens found:</b><br>" + data.tokens.map(t => `<span class="found">${t}</span>`).join("<br>");
+          data.tokens.forEach(t => allTokens.add(t));
+          tokenListEl.innerHTML = "<b>Tokens found:</b><br>" + Array.from(allTokens).map(t => `<span class="found">${t}</span>`).join("<br>");
         }
         if (data.finished) {
           scrapeBtn.disabled = false;
-          statusEl.textContent = "Scraping complete. " + (data.tokens && data.tokens.length ? "Tokens found!" : "No tokens found.");
+          downloadLink.style.display = allTokens.size ? "inline-block" : "none";
+          statusEl.textContent = "Scraping complete. " + (allTokens.size ? "Tokens found!" : "No tokens found.");
           evtSource.close();
         }
       };
       evtSource.onerror = function() {
         statusEl.innerHTML = '<span class="error">Error: Could not connect to backend or scraping failed.</span>';
         scrapeBtn.disabled = false;
+        downloadLink.style.display = allTokens.size ? "inline-block" : "none";
         evtSource.close();
       }
     };
