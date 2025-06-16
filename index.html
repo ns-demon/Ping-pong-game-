@@ -6,15 +6,15 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="game-container">
+  <div id="game-container" style="visibility: hidden;">
     <h1>Super Advanced Ping Pong</h1>
     <canvas id="game-canvas" width="900" height="540"></canvas>
     <div id="ui-bar">
-      <button id="pause-btn">Pause</button>
-      <button id="restart-btn">Restart</button>
+      <button id="pause-btn" disabled>Pause</button>
+      <button id="restart-btn" disabled>Restart</button>
       <label>
         Difficulty:
-        <select id="difficulty">
+        <select id="difficulty" disabled>
           <option value="easy">Easy</option>
           <option value="normal" selected>Normal</option>
           <option value="hard">Hard</option>
@@ -28,27 +28,39 @@
       <button id="overlay-restart-btn" hidden>Restart</button>
     </div>
   </div>
+  <div id="gateway-overlay">
+    <div id="gateway-message">
+      <span>Click to play Ping Pong</span>
+    </div>
+  </div>
   <audio id="audio-bounce" src="https://cdn.jsdelivr.net/gh/AI-Resources/sfx@main/bounce.mp3"></audio>
   <audio id="audio-score" src="https://cdn.jsdelivr.net/gh/AI-Resources/sfx@main/score.mp3"></audio>
   <audio id="audio-powerup" src="https://cdn.jsdelivr.net/gh/AI-Resources/sfx@main/powerup.mp3"></audio>
   <audio id="audio-bg" src="https://cdn.jsdelivr.net/gh/AI-Resources/sfx@main/bg-music.mp3" loop></audio>
   <script src="game.js"></script>
   <script>
-    // Show gateway overlay immediately on page load
-    window.addEventListener('DOMContentLoaded', function () {
-      var overlay = document.getElementById('overlay');
-      var overlayContent = document.getElementById('overlay-content');
-      var pauseBtn = document.getElementById('pause-btn');
-      var restartBtn = document.getElementById('restart-btn');
-      var difficultySelect = document.getElementById('difficulty');
-      // Gateway overlay message
-      overlay.hidden = false;
-      overlayContent.innerHTML = "Click to play Ping Pong";
-      document.getElementById('resume-btn').hidden = true;
-      document.getElementById('overlay-restart-btn').hidden = true;
-      pauseBtn.disabled = true;
-      restartBtn.disabled = true;
-      difficultySelect.disabled = true;
+    // Gateway logic: Wait for user click before starting the game and revealing everything
+    document.addEventListener('DOMContentLoaded', function () {
+      var gateway = document.getElementById('gateway-overlay');
+      var gameContainer = document.getElementById('game-container');
+      gateway.style.display = "flex";
+      function startGameTrigger() {
+        gateway.style.display = "none";
+        gameContainer.style.visibility = "visible";
+        // Enable controls before JS loads (in case JS loads late)
+        document.getElementById("pause-btn").disabled = false;
+        document.getElementById("restart-btn").disabled = false;
+        document.getElementById("difficulty").disabled = false;
+        // Now call game's gateway start
+        if (window.startGameAfterGateway) window.startGameAfterGateway();
+        document.removeEventListener('click', startGameTrigger);
+        gateway.removeEventListener('click', startGameTrigger);
+      }
+      gateway.addEventListener('click', startGameTrigger);
+      // Also allow pressing Enter key to start
+      document.addEventListener('keydown', function(e){
+        if(e.key === "Enter" && gateway.style.display !== "none") startGameTrigger();
+      });
     });
   </script>
 </body>
