@@ -121,7 +121,7 @@ class Ball {
     this.dy = dy;
     this.baseSpeed = speed;
     this.speed = speed;
-    this.lastHit = null; // 'player' or 'ai'
+    this.lastHit = dx < 0 ? "ai" : "player"; // Ensure lastHit is never null
     this.speedTicks = 0;
   }
   draw() {
@@ -143,6 +143,8 @@ class Ball {
       this.dy *= -1;
       SOUNDS.bounce.currentTime = 0; SOUNDS.bounce.play();
       addParticles(this.x+this.size/2, this.y+this.size/2, 8);
+      // Clamp to bounds
+      this.y = clamp(this.y, 0, GAME_HEIGHT-this.size);
     }
     // Powerup effect
     if (this.speedTicks > 0) {
@@ -158,7 +160,12 @@ class Ball {
 
 // --- Utility Functions ---
 function clamp(val, min, max) { return Math.max(min, Math.min(val, max)); }
-function rand(min, max) { return Math.random() * (max-min) + min; }
+function rand(min, max) {
+  // If called as rand(a, b): returns [a, b)
+  // If called as rand([-1,1]): returns -1 or 1
+  if (Array.isArray(min)) return min[Math.floor(Math.random()*min.length)];
+  return Math.random() * (max-min) + min;
+}
 function pick(arr) { return arr[Math.floor(Math.random()*arr.length)]; }
 
 // --- Particles for Effects ---
@@ -239,7 +246,7 @@ function checkPowerupCollision(ball) {
       pu.active = false;
       SOUNDS.powerup.currentTime = 0; SOUNDS.powerup.play();
       addParticles(pu.x, pu.y, 18);
-      applyPowerup(pu.type, ball.lastHit);
+      applyPowerup(pu.type, ball.lastHit || "player");
     }
   }
 }
@@ -271,7 +278,14 @@ function resetGame() {
   playerScore = 0; aiScore = 0;
   player = new Paddle(24, PADDLE_COLOR);
   ai = new Paddle(GAME_WIDTH-24-PADDLE_W, AI_PADDLE_COLOR);
-  balls = [new Ball(GAME_WIDTH/2-BALL_SIZE/2, GAME_HEIGHT/2-BALL_SIZE/2, rand([-1,1]), rand(-0.5,0.5), 8)];
+  // Fix: Use Math.random() > 0.5 ? 1 : -1 for direction
+  balls = [new Ball(
+    GAME_WIDTH/2-BALL_SIZE/2,
+    GAME_HEIGHT/2-BALL_SIZE/2,
+    Math.random() > 0.5 ? 1 : -1,
+    rand(-0.5,0.5),
+    8
+  )];
   particles = [];
   powerups = [];
   frame = 0; powerupTimer = 0;
@@ -341,6 +355,10 @@ function checkPaddleCollision(ball, paddle, side) {
     // Slight increase in speed
     ball.baseSpeed *= 1.04;
     ball.speed = ball.baseSpeed;
+
+    // Clamp ball within paddle so it doesn't get stuck
+    if (side === "player") ball.x = paddle.x + paddle.width + 1;
+    else ball.x = paddle.x - ball.size - 1;
   }
 }
 
@@ -413,7 +431,13 @@ function gameLoop() {
     }
   }
   if (balls.length === 0) {
-    balls.push(new Ball(GAME_WIDTH/2-BALL_SIZE/2, GAME_HEIGHT/2-BALL_SIZE/2, rand([-1,1]), rand(-0.5,0.5), 8));
+    balls.push(new Ball(
+      GAME_WIDTH/2-BALL_SIZE/2,
+      GAME_HEIGHT/2-BALL_SIZE/2,
+      Math.random() > 0.5 ? 1 : -1,
+      rand(-0.5,0.5),
+      8
+    ));
     updateScoreUI();
   }
   // Powerup spawn
@@ -437,8 +461,8 @@ function gameLoop() {
 function showOverlay(text) {
   overlay.hidden = false;
   overlayContent.innerHTML = text;
-  resumeBtn.hidden = gameState !== "paused";
-  overlayRestartBtn.hidden = gameState !== "over";
+  resumeBtn.hidden = !(gameState === "paused");
+  overlayRestartBtn.hidden = !(gameState === "over");
 }
 function hideOverlay() { overlay.hidden = true; }
 
@@ -478,6 +502,18 @@ function resizeCanvas() {
   canvas.style.width = w + "px";
 }
 window.addEventListener("resize", resizeCanvas);
+
+// --- Audio Unlock (for browsers that require interaction) ---
+function unlockAudio() {
+  if (!bgMusicStarted) {
+    SOUNDS.bg.play().catch(()=>{});
+    bgMusicStarted = true;
+    document.removeEventListener('click', unlockAudio);
+    document.removeEventListener('keydown', unlockAudio);
+  }
+}
+document.addEventListener('click', unlockAudio);
+document.addEventListener('keydown', unlockAudio);
 
 // --- Start Game ---
 function startGame() {
